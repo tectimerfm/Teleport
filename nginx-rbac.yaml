@@ -1,0 +1,71 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: nginx
+  name: nginx-deployer
+rules:
+
+# Permite administrar Deployments
+- apiGroups: ["apps"]
+  resources:
+    - deployments
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+
+# Permite visualizar ReplicaSets
+- apiGroups: ["apps"]
+  resources:
+    - replicasets
+  verbs:
+    - get
+    - list
+    - watch
+
+# Permite administrar Services
+- apiGroups: [""]
+  resources:
+    - services
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+
+# Permite consultar Pods
+- apiGroups: [""]
+  resources:
+    - pods
+  verbs:
+    - get
+    - list
+    - watch
+
+# Permite consultar logs
+- apiGroups: [""]
+  resources:
+    - pods/log
+  verbs:
+    - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: nginx
+  name: nginx-deployer-binding
+subjects:
+- kind: User
+  name: nginx-user
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: nginx-deployer
+  apiGroup: rbac.authorization.k8s.io
