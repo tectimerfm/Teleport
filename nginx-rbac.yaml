@@ -5,7 +5,7 @@ metadata:
   name: nginx-deployer
 rules:
 
-# Permite administrar Deployments
+# Allow managing deployments
 - apiGroups: ["apps"]
   resources:
     - deployments
@@ -18,7 +18,7 @@ rules:
     - patch
     - delete
 
-# Permite visualizar ReplicaSets
+# Allows you to view ReplicaSets
 - apiGroups: ["apps"]
   resources:
     - replicasets
@@ -27,7 +27,7 @@ rules:
     - list
     - watch
 
-# Permite administrar Services
+# Allows you to manage Services
 - apiGroups: [""]
   resources:
     - services
@@ -40,7 +40,7 @@ rules:
     - patch
     - delete
 
-# Permite consultar Pods
+# Allows you to view Pods
 - apiGroups: [""]
   resources:
     - pods
@@ -49,7 +49,7 @@ rules:
     - list
     - watch
 
-# Permite consultar logs
+# Allows you to view logs
 - apiGroups: [""]
   resources:
     - pods/log
