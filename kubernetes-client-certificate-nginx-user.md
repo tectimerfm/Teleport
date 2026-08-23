@@ -152,6 +152,12 @@ kubectl config \
   --embed-certs=true
 ```
 
+Create the default namespace `nginx`:
+
+```bash
+kubectl create ns nginx
+```
+
 Create a context that uses the `nginx` namespace by default:
 
 ```bash
