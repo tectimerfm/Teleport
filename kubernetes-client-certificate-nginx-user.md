@@ -1,13 +1,120 @@
-# Kubernetes Client Certificate and Kubeconfig for `nginx-user`
+# Configuring RBAC permissions using the `nginx` role with the necessary permissions to manage the `nginx` namespace, including creating the Kubernetes Client Certificate and Kubeconfig.
 
-This guide creates a private key, requests a Kubernetes client certificate valid for 14 days, builds a dedicated kubeconfig, and verifies the user's RBAC permissions.
+This guide configures RBAC permissions and creates a private key, requests a Kubernetes client certificate valid for 14 days, builds a dedicated kubeconfig, and verifies the user's RBAC permissions.
 
 ## 1. Official Documentation
 
 - [Issue a Certificate for a Kubernetes API Client Using a CertificateSigningRequest](https://kubernetes.io/docs/tasks/tls/certificate-issue-client-csr/)
 - [CertificateSigningRequest v1 API reference](https://kubernetes.io/docs/reference/kubernetes-api/authentication-resources/certificate-signing-request-v1/)
 
-## 2. Create the User's Private Key
+
+## 2. Create the namespace `nginx`
+
+Create the default namespace `nginx`:
+
+```bash
+kubectl create ns nginx
+```
+
+## 3. Create the file nginx-rbac.yaml with the RBAC permissions and apply.
+
+```bash
+cat > nginx-rbac.yaml <<'EOF'
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: nginx
+  name: nginx-deployer
+rules:
+
+# Allow managing deployments
+- apiGroups: ["apps"]
+  resources:
+    - deployments
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+
+# Allows you to view ReplicaSets
+- apiGroups: ["apps"]
+  resources:
+    - replicasets
+  verbs:
+    - get
+    - list
+    - watch
+
+# Allows you to manage Services
+- apiGroups: [""]
+  resources:
+    - services
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+
+# Allows you to view Pods
+- apiGroups: [""]
+  resources:
+    - pods
+  verbs:
+    - get
+    - list
+    - watch
+
+# Allows you to view logs
+- apiGroups: [""]
+  resources:
+    - pods/log
+  verbs:
+    - get
+    
+# Ingress
+- apiGroups:
+    - networking.k8s.io
+  resources:
+    - ingresses
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: nginx
+  name: nginx-deployer-binding
+subjects:
+- kind: User
+  name: nginx-user
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: nginx-deployer
+  apiGroup: rbac.authorization.k8s.io
+EOF
+```
+
+Apply the RBCA via `nginx-rbac.yaml`:
+
+```bash
+kubectl apply -f nginx-rbac.yaml
+```
+
+## 4. Create the User's Private Key
 
 Create a working directory and generate a 3072-bit RSA private key:
 
@@ -19,7 +126,7 @@ openssl genrsa -out nginx-user.key 3072
 chmod 600 nginx-user.key
 ```
 
-## 3. Create the Certificate Signing Request
+## 5. Create the Certificate Signing Request
 
 Create a Certificate Signing Request (CSR) with `nginx-user` as the Common Name (CN):
 
@@ -33,7 +140,7 @@ openssl req \
 
 Kubernetes uses the certificate's CN as the username during authentication.
 
-## 4. Create the Kubernetes CertificateSigningRequest
+## 6. Create the Kubernetes CertificateSigningRequest
 
 Convert the CSR to a single-line base64 string:
 
@@ -67,7 +174,7 @@ kubectl apply -f nginx-user-csr.yaml
 kubectl get csr nginx-user
 ```
 
-## 5. Approve the Certificate Request
+## 7. Approve the Certificate Request
 
 An authorized cluster administrator must approve the request:
 
@@ -81,7 +188,7 @@ Confirm that it has been approved and issued:
 kubectl get csr nginx-user
 ```
 
-## 6. Extract the Issued Certificate
+## 8. Extract the Issued Certificate
 
 Extract and decode the certificate returned by Kubernetes:
 
@@ -111,7 +218,7 @@ openssl x509 \
 
 Check the `notBefore` and `notAfter` values to confirm the actual validity period granted by the cluster.
 
-## 7. Create a Dedicated Kubeconfig
+## 9. Create a Dedicated Kubeconfig
 
 Create a separate kubeconfig for `nginx-user` using the certificate and private key generated above.
 
@@ -152,12 +259,6 @@ kubectl config \
   --embed-certs=true
 ```
 
-Create the default namespace `nginx`:
-
-```bash
-kubectl create ns nginx
-```
-
 Create a context that uses the `nginx` namespace by default:
 
 ```bash
@@ -179,7 +280,7 @@ kubectl config \
 
 > **Important:** The Kubernetes API Server certificate must contain the public IP address in its Subject Alternative Names (SANs). TCP port `6443` must also be reachable from the client and restricted to trusted source IP addresses.
 
-## 8. Copy the Kubeconfig to the Client Computer
+## 10. Copy the Kubeconfig to the Client Computer
 
 Run the following commands on the client computer that will access the cluster:
 
@@ -193,7 +294,7 @@ scp -i "rob_key.pem" \
 chmod 600 "$HOME/.kube/nginx-user"
 ```
 
-## 9. Test Cluster Access
+## 11. Test Cluster Access
 
 Test whether the user can list pods in the `nginx` namespace:
 
@@ -219,7 +320,7 @@ yes
 
 The certificate authenticates the identity `nginx-user`, but it does not grant permissions by itself. A `RoleBinding` or `ClusterRoleBinding` must associate this user with the appropriate Kubernetes RBAC role.
 
-## 10. Security Recommendations
+## 12. Security Recommendations
 
 - Keep `nginx-user.key` private and never share it separately.
 - Store the kubeconfig with file permissions set to `600`.
