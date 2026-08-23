@@ -1,0 +1,143 @@
+# Configure cert-manager and a Let's Encrypt ClusterIssuer for NGINX Ingress
+
+This guide installs cert-manager and configures a production Let's Encrypt `ClusterIssuer` that uses the HTTP-01 challenge through the NGINX Ingress Controller.
+
+## Important Clarification
+
+The Let's Encrypt certificate issued by cert-manager provides HTTPS for the NGINX website exposed through the Ingress Controller.
+
+It is separate from the Kubernetes client certificate used by `nginx-user` to authenticate with the Kubernetes API. The `nginx-user` kubeconfig and RBAC permissions do not provide the cluster-wide privileges required to install cert-manager or create a `ClusterIssuer`.
+
+## 1. Prerequisites
+
+Before continuing, confirm that:
+
+- The NGINX Ingress Controller is installed and operational.
+- The IngressClass is named `nginx`.
+- The public DNS record points to the external AWS Load Balancer used by the NGINX Ingress Controller.
+- TCP ports `80` and `443` are reachable from the internet.
+- You are using an administrator kubeconfig with sufficient cluster-wide permissions.
+
+For this environment, the DNS record is managed through IONOS.
+
+## 2. Official Documentation
+
+- [Installing cert-manager with kubectl](https://cert-manager.io/docs/installation/kubectl/)
+- [Issuing an ACME certificate using HTTP validation](https://cert-manager.io/docs/tutorials/acme/http-validation/)
+- [cert-manager v1.21.1 release](https://github.com/cert-manager/cert-manager/releases/tag/v1.21.1)
+
+## 3. Install cert-manager
+
+Install cert-manager as a cluster administrator. Do not perform this installation using the restricted `nginx-deployer` Role.
+
+```bash
+kubectl apply -f \
+  https://github.com/cert-manager/cert-manager/releases/download/v1.21.1/cert-manager.yaml
+```
+
+The installation manifest creates the cert-manager CustomResourceDefinitions and deploys its components in the `cert-manager` namespace.
+
+## 4. Wait for cert-manager to Become Ready
+
+Watch the cert-manager pods:
+
+```bash
+kubectl get pods -n cert-manager -w
+```
+
+Wait until the following components show the `Running` status and all containers are ready:
+
+- `cert-manager`
+- `cert-manager-cainjector`
+- `cert-manager-webhook`
+
+Press `Ctrl+C` after all pods are ready.
+
+You can also confirm the deployments without watch mode:
+
+```bash
+kubectl get deployments -n cert-manager
+```
+
+## 5. Create the Production Let's Encrypt ClusterIssuer
+
+Replace `<INSERT_YOUR_EMAIL_ADDRESS>` with a valid email address that you control. Let's Encrypt can use this address for important account and certificate notifications.
+
+```bash
+cat > letsencrypt-prod.yaml <<'EOF'
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    email: <INSERT_YOUR_EMAIL_ADDRESS>
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+EOF
+```
+
+The `ingressClassName: nginx` setting instructs cert-manager to create temporary Ingress resources handled by the NGINX Ingress Controller during HTTP-01 validation. This is the recommended configuration for Ingress controllers that support `ingressClassName`, including ingress-nginx.
+
+## 6. Apply the ClusterIssuer
+
+```bash
+kubectl apply -f letsencrypt-prod.yaml
+```
+
+## 7. Verify the ClusterIssuer
+
+Check its status:
+
+```bash
+kubectl get clusterissuer letsencrypt-prod
+```
+
+The `READY` column should eventually display `True`.
+
+For additional details and events, run:
+
+```bash
+kubectl describe clusterissuer letsencrypt-prod
+```
+
+You can also wait explicitly for the issuer to become ready:
+
+```bash
+kubectl wait \
+  --for=condition=Ready \
+  clusterissuer/letsencrypt-prod \
+  --timeout=120s
+```
+
+## 8. What This Step Creates
+
+This procedure creates a production ACME `ClusterIssuer`, but it does not request a certificate for the NGINX website by itself.
+
+A Kubernetes `Ingress` or `Certificate` resource must reference `letsencrypt-prod` and specify the required DNS name. For an Ingress resource, the usual annotation is:
+
+```yaml
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+```
+
+The Ingress must also contain a `tls` section with the website hostname and the name of the Secret where cert-manager will store the certificate.
+
+## 9. HTTP-01 Validation Requirements
+
+During certificate issuance, cert-manager creates temporary Pod, Service, and Ingress resources to respond to the Let's Encrypt HTTP-01 challenge.
+
+For validation to succeed:
+
+- The requested hostname must resolve publicly to the NGINX Ingress Load Balancer.
+- Let's Encrypt must be able to reach the hostname over TCP port `80`.
+- The NGINX Ingress Controller must process resources using the `nginx` IngressClass.
+- Redirects or firewall rules must not prevent access to the `/.well-known/acme-challenge/` path.
+
+> **Recommendation:** When testing a new configuration, use the Let's Encrypt staging environment first to avoid production rate limits. After validation succeeds, switch to the production endpoint shown in this guide.
