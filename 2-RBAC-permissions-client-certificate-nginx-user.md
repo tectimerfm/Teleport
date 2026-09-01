@@ -70,6 +70,14 @@ rules:
     - get
     - list
     - watch
+    
+# Allows Teleport exec
+- apiGroups: [""]
+  resources:
+    - pods/exec
+  verbs:
+    - get
+    - create
 
 # Allows you to view logs
 - apiGroups: [""]
