@@ -117,7 +117,54 @@ kubectl wait \
 
 ## 8. Creating the Nginx Ingress and issuing the SSL certificate
 
-This procedure creates a Nginx Ingress a production ACME `ClusterIssuer`, but it does not request a certificate for the NGINX website by itself.
+Install Ingress-nginx (ingress-nginx-controller) as a cluster administrator. Do not perform this installation using the restricted `nginx-deployer` Role.
+
+```bash
+kubectl apply -f \
+https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.13.3/deploy/static/provider/baremetal/deploy.yaml
+```
+
+Check its status:
+
+```bash
+kubectl get pods -n ingress-nginx -w
+```
+
+Therefore, we do not edit the `ingress-nginx-controller` service to pin the node ports to 30080 and 30443; this ensures they do not change during a new deployment, thereby avoiding a loss of connectivity with the AWS Load Balancer.
+
+```bash
+kubectl edit svc ingress-nginx-controller -n ingress-nginx
+```
+
+In the spec.ports section, we explicitly specify:
+
+```bash
+spec:
+  type: NodePort
+
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http
+    nodePort: 30080
+
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: https
+    nodePort: 30443
+```
+After saving, confirm:
+
+```bash
+kubectl edit svc ingress-nginx-controller -n ingress-nginx
+```
+The result must show:
+
+```bash
+80:30080/TCP,443:30443/TCP
+```
 
 A Kubernetes `Ingress` or `Certificate` resource must reference `letsencrypt-prod` and specify the required DNS name. For an Ingress resource, the usual annotation is:
 
