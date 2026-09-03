@@ -115,9 +115,9 @@ kubectl wait \
   --timeout=120s
 ```
 
-## 8. What This Step Creates
+## 8. Creating the Nginx Ingress and issuing the SSL certificate
 
-This procedure creates a production ACME `ClusterIssuer`, but it does not request a certificate for the NGINX website by itself.
+This procedure creates a Nginx Ingress a production ACME `ClusterIssuer`, but it does not request a certificate for the NGINX website by itself.
 
 A Kubernetes `Ingress` or `Certificate` resource must reference `letsencrypt-prod` and specify the required DNS name. For an Ingress resource, the usual annotation is:
 
@@ -125,6 +125,41 @@ A Kubernetes `Ingress` or `Certificate` resource must reference `letsencrypt-pro
 metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+```
+
+```bash
+cat > nginx-ingress.yaml <<'EOF'
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx
+  namespace: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - nginx.ninjadevops.co.uk
+    secretName: nginx-tls
+  rules:
+  - host: nginx.ninjadevops.co.uk
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 80
+EOF
+```
+
+And apply with:
+
+```bash
+kubectl apply -f nginx-ingress.yaml
 ```
 
 The Ingress must also contain a `tls` section with the website hostname and the name of the Secret where cert-manager will store the certificate.
