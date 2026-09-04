@@ -143,6 +143,11 @@ The lab uses one NLB DNS endpoint for ingress traffic. Two listeners and target 
 - TCP listener `443` forwards to NodePort `30443`.
 - Both worker nodes are registered with the applicable target groups.
 
+Note: Instructions for configuring the Ingress-nginx (ingress-nginx-controller) nodePorts can be found in the document referenced below, in the section "8. Creating the Nginx Ingress with Static nodePort and issuing the SSL certificate for https://nginx.ninjadevops.co.uk/".
+
+- [3-cert-manager-letsencrypt-clusterissuer.md](https://github.com/tectimerfm/Teleport/blob/main/3-cert-manager-letsencrypt-clusterissuer.md)
+
+
 ### Step 2: Create the Kubernetes cluster
 
 Follow the kubeadm and Flannel procedure in:
