@@ -166,7 +166,7 @@ The result must show:
 80:30080/TCP,443:30443/TCP
 ```
 
-Note: Perform this installation using the restricted `nginx-deployer` Role via the Kubeconfig created via the tutorial shown below.
+Note: The following steps must be executed using the restricted `nginx-deployer` function, via the Kubeconfig created according to the tutorial below.
 
 Reference:
 
