@@ -1,4 +1,4 @@
-# Configure cert-manager and a Let's Encrypt ClusterIssuer for NGINX Ingress
+# Configure cert-manager and a Let's Encrypt ClusterIssuer for NGINX Ingress + Nginx Ingress with Static nodePort
 
 This guide installs cert-manager and configures a production Let's Encrypt `ClusterIssuer` that uses the HTTP-01 challenge through the NGINX Ingress Controller.
 
@@ -115,7 +115,7 @@ kubectl wait \
   --timeout=120s
 ```
 
-## 8. Creating the Nginx Ingress and issuing the SSL certificate
+## 8. Creating the Nginx Ingress with Static nodePort and issuing the SSL certificate for https://nginx.ninjadevops.co.uk/
 
 Install Ingress-nginx (ingress-nginx-controller) as a cluster administrator. Do not perform this installation using the restricted `nginx-deployer` Role.
 
@@ -165,6 +165,12 @@ The result must show:
 ```bash
 80:30080/TCP,443:30443/TCP
 ```
+
+Note: Perform this installation using the restricted `nginx-deployer` Role via the Kubeconfig created via the tutorial shown below.
+
+Reference:
+
+- [Configuring RBAC permissions using the nginx role with the necessary permissions to manage the nginx namespace, including creating the Kubernetes Client Certificate and Kubeconfig.](https://github.com/tectimerfm/Teleport/blob/main/2-RBAC-permissions-client-certificate-nginx-user.md/)
 
 A Kubernetes `Ingress` or `Certificate` resource must reference `letsencrypt-prod` and specify the required DNS name. For an Ingress resource, the usual annotation is:
 
